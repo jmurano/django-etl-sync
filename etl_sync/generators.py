@@ -314,8 +314,14 @@ class InstanceGenerator(BaseInstanceGenerator):
         for fieldname in fieldnames:
             if fieldname not in dic:
                 continue
-            field = model_instance._meta.get_field(fieldname)
-            fieldtype = field.get_internal_type()
+            # field = model_instance._meta.get_field(fieldname)
+            field_tuple = model_instance._meta.get_field_by_name(fieldname)
+            field = field_tuple[0]
+            if field_tuple[2] or field_tuple[3]:
+                fieldtype = field.get_internal_type()
+            else:
+                #   one-to-many is prepared like ManyToMany
+                fieldtype = 'ManyToManyField'
             try:
                 fieldvalue = self.preparations[fieldtype](
                     self, field, dic[fieldname])
