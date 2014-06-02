@@ -131,9 +131,12 @@ class BaseInstanceGenerator(object):
         clean at this point. Use the original dic to fill
         in intermediate relationship."""
         for key, lst in rel_inst_dic.iteritems():
+            # import pdb;  pdb.set_trace()
             field = getattr(instance, key)
             try:
                 field.add(*lst)
+                #   thinking that should be **, not *
+                # field.add(**lst)
             except AttributeError:
                 # Deal with M2M fields with through model here.
                 # Explicitly generate connecting relationship
@@ -249,6 +252,23 @@ class InstanceGenerator(BaseInstanceGenerator):
             instance = generator.get_instance()
             self.related_instances[field.name].append(instance)
 
+
+    def _prepare_reverse_fk(self, field, value):
+        # defer assignment of related instances until instance
+        # creation is finished
+        if not isinstance(value, list):
+            value = [value]
+        # self.related_instances[field.name] = []
+        self.related_instances[field] = []
+        for entry in value:
+            # generator = RelInstanceGenerator(field, entry)
+            #   must put this off until _assign_related
+            #   in case FK in other model is required.
+            # instance = generator.get_instance()
+            # self.related_instances[field.name].append(instance)
+            self.related_instances[field].append(entry)
+
+
     def _prepare_date(self, field, value):
         if not (field.auto_now or field.auto_now_add):
             formfield = DateTimeField()
@@ -296,6 +316,7 @@ class InstanceGenerator(BaseInstanceGenerator):
 
     preparations = {
         'ForeignKey': _prepare_fk,
+        'ReverseForeignKey': _prepare_reverse_fk,
         'ManyToManyField': _prepare_m2m,
         'DateTimeField': _prepare_date,
         'GeometryField': _prepare_field,
@@ -314,21 +335,33 @@ class InstanceGenerator(BaseInstanceGenerator):
         for fieldname in fieldnames:
             if fieldname not in dic:
                 continue
-            # field = model_instance._meta.get_field(fieldname)
             field_tuple = model_instance._meta.get_field_by_name(fieldname)
             field = field_tuple[0]
             if field_tuple[2] or field_tuple[3]:
                 fieldtype = field.get_internal_type()
+                try:
+                    fieldvalue = self.preparations[fieldtype](
+                        self, field, dic[fieldname])
+                except KeyError:
+                    fieldvalue = dic[fieldname]
             else:
-                #   one-to-many is prepared like ManyToMany
-                fieldtype = 'ManyToManyField'
-            try:
+                # print "one-to-many: %s" % field
+                #   one-to-many is ...special
+                fieldtype = 'ReverseForeignKey'
                 fieldvalue = self.preparations[fieldtype](
-                    self, field, dic[fieldname])
-            except KeyError:
-                fieldvalue = dic[fieldname]
+                    self,
+                    fieldname,
+                    dic[fieldname],
+                )
+            # try:
+            #     fieldvalue = self.preparations[fieldtype](
+            #         self, field, dic[fieldname])
+            # except KeyError:
+            #     fieldvalue = dic[fieldname]
             try:
-                setattr(model_instance, fieldname, fieldvalue)
+                #   ReverseForeignKey is dealt with in _assign_related
+                if fieldvalue:
+                    setattr(model_instance, fieldname, fieldvalue)
             except AttributeError:
                 pass
             except ValueError:
@@ -341,7 +374,11 @@ class RelInstanceGenerator(InstanceGenerator):
 
     def __init__(self, field, dic, **kwargs):
         super(RelInstanceGenerator, self).__init__(None, dic, **kwargs)
-        self.model_class = field.rel.to
+        if hasattr(field, 'rel'):
+            self.model_class = field.rel.to
+        else:
+            #   not M2M - must be one-to-many
+            self.model_class = field.model
 
 
 class FkInstanceGenerator(RelInstanceGenerator):
