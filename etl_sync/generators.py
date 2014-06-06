@@ -135,8 +135,6 @@ class BaseInstanceGenerator(object):
             field = getattr(instance, key)
             try:
                 field.add(*lst)
-                #   thinking that should be **, not *
-                # field.add(**lst)
             except AttributeError:
                 # Deal with M2M fields with through model here.
                 # Explicitly generate connecting relationship
@@ -258,14 +256,8 @@ class InstanceGenerator(BaseInstanceGenerator):
         # creation is finished
         if not isinstance(value, list):
             value = [value]
-        # self.related_instances[field.name] = []
         self.related_instances[field] = []
         for entry in value:
-            # generator = RelInstanceGenerator(field, entry)
-            #   must put this off until _assign_related
-            #   in case FK in other model is required.
-            # instance = generator.get_instance()
-            # self.related_instances[field.name].append(instance)
             self.related_instances[field].append(entry)
 
 
@@ -345,7 +337,6 @@ class InstanceGenerator(BaseInstanceGenerator):
                 except KeyError:
                     fieldvalue = dic[fieldname]
             else:
-                # print "one-to-many: %s" % field
                 #   one-to-many is ...special
                 fieldtype = 'ReverseForeignKey'
                 fieldvalue = self.preparations[fieldtype](
@@ -353,13 +344,7 @@ class InstanceGenerator(BaseInstanceGenerator):
                     fieldname,
                     dic[fieldname],
                 )
-            # try:
-            #     fieldvalue = self.preparations[fieldtype](
-            #         self, field, dic[fieldname])
-            # except KeyError:
-            #     fieldvalue = dic[fieldname]
             try:
-                #   ReverseForeignKey is dealt with in _assign_related
                 if fieldvalue:
                     setattr(model_instance, fieldname, fieldvalue)
             except AttributeError:
