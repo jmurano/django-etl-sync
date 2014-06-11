@@ -131,7 +131,6 @@ class BaseInstanceGenerator(object):
         clean at this point. Use the original dic to fill
         in intermediate relationship."""
         for key, lst in rel_inst_dic.iteritems():
-            # import pdb;  pdb.set_trace()
             field = getattr(instance, key)
             try:
                 field.add(*lst)
@@ -345,8 +344,11 @@ class InstanceGenerator(BaseInstanceGenerator):
                     dic[fieldname],
                 )
             try:
-                if fieldvalue:
+                if fieldvalue or fieldtype != 'ReverseForeignKey':
                     setattr(model_instance, fieldname, fieldvalue)
+            except NameError:
+                #   probably indicates that fieldvalue has not been defined
+                pass
             except AttributeError:
                 pass
             except ValueError:
