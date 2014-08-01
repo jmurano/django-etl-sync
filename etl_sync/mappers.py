@@ -125,6 +125,7 @@ class Mapper(object):
     logfile = None
     logfilename = None
     forms = []
+    counter = None
 
     def __init__(self, *args, **kwargs):
         for k in kwargs:
@@ -158,19 +159,19 @@ class Mapper(object):
                 '{1}\nEnd line: {2}\n'.format(
                     datetime.now().strftime(
                         '%Y-%m-%d'), self.slice_begin, self.slice_end))
-            counter = FeedbackCounter(
+            self.counter = FeedbackCounter(
                 feedbacksize=self.feedbacksize, message=self.message)
-            while self.slice_begin and self.slice_begin > counter.counter:
+            while self.slice_begin and self.slice_begin > self.counter.counter:
                 reader.next()
-                counter.increment()
-            while not self.slice_end or self.slice_end >= counter.counter:
+                self.counter.increment()
+            while not self.slice_end or self.slice_end >= self.counter.counter:
                 try:
                     csv_dic = reader.next()
                 except (UnicodeDecodeError, csv.Error):
                     reader.log(
                         'Text decoding or CSV error in line {0} '
-                        '=> rejected'.format(counter.counter))
-                    counter.reject()
+                        '=> rejected'.format(self.counter.counter))
+                    self.counter.reject()
                     continue
                 except StopIteration:
                     reader.log('End of file.')
@@ -182,8 +183,8 @@ class Mapper(object):
                     reader.log(
                         'Validation error in line {0}: {1} '
                         '=> rejected'.format(
-                            counter.counter, transformer.error))
-                    counter.reject()
+                            self.counter.counter, transformer.error))
+                    self.counter.reject()
                     continue
                 # remove keywords conflicting with Django model
                 # TODO: I think that is done in several places now
@@ -197,10 +198,10 @@ class Mapper(object):
                     generator.get_instance()
                 except (ValidationError, IntegrityError, DatabaseError), e:
                     reader.log('Error in line {0}: {1} => rejected'.format(
-                        counter.counter, str(e)))
-                    counter.reject()
+                        self.counter.counter, str(e)))
+                    self.counter.reject()
                     continue
                 else:
-                    counter.use_result(generator.res)
-            reader.log(counter.finished())
+                    self.counter.use_result(generator.res)
+            reader.log(self.counter.finished())
         self.result = 'loaded'
