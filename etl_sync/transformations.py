@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError
 
 
+#   20141105 jmurano
+#   adding a "child row" flag
 class Transformer(object):
     """Base transformer. Django forms can be used instead.
     This class contains only the bare minimum of methods
@@ -9,6 +11,7 @@ class Transformer(object):
     error = None
     # dictionary of mappings applied in remap
     mappings = {}
+    is_child_row = False
 
     def __init__(self, dic, defaults={}):
         self.dic = dic
@@ -66,6 +69,8 @@ class Transformer(object):
     def is_valid(self):
         try:
             self.cleaned_data = self.clean(self.dic)
+            if self.is_child_row:
+                return False
             return True
         except (ValidationError, UnicodeEncodeError), e:
             self.error = e

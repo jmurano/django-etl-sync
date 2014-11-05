@@ -20,6 +20,7 @@ class FeedbackCounter(object):
         self.rejected = 0
         self.created = 0
         self.updated = 0
+        self.child_rows = 0
         self.starttime = datetime.now()
         self.feedbacktime = self.starttime
 
@@ -28,10 +29,17 @@ class FeedbackCounter(object):
         if self.counter % self.feedbacksize == 0:
             print(
                 '{0} {1} processed in {2}, {3}, {4} created, {5} updated, '
-                '{6} rejected'.format(
-                    self.message, self.feedbacksize,
-                    datetime.now()-self.feedbacktime, self.counter,
-                    self.created, self.updated, self.rejected))
+                '{6} rejected, {7} child rows'.format(
+                    self.message,
+                    self.feedbacksize,
+                    datetime.now()-self.feedbacktime,
+                    self.counter,
+                    self.created,
+                    self.updated,
+                    self.rejected,
+                    self.child_rows,
+                )
+            )
             self.feedbacktime = datetime.now()
 
     def increment(self):
@@ -43,37 +51,47 @@ class FeedbackCounter(object):
         self.rejected += 1
         self.increment()
 
-    def create(self):
+    def inc_child_rows(self):
+        self.child_rows += 1
         self.increment()
+
+    def create(self):
+        #   20141105 jmurano
+        #   moved to use_result()
+        # self.increment()
         self.created += 1
 
     def update(self):
-        self.increment()
+        # self.increment()
         self.updated += 1
 
     def use_result(self, res):
         """Use feedback from InstanceGenerator to set counters."""
+        self.increment()
         if res.get('created'):
             self.create()
         elif res.get('updated'):
             self.update()
-        else:
-            self.increment()
+
 
     def finished(self):
         """Provides final message."""
         return (
             'Data extraction finished {0}\n\n{1} '
-            'created\n{2} updated\n{3} rejected'.format(
-                datetime.now(), self.created, self.updated,
-                self.rejected))
+            'created\n{2} updated\n{3} rejected\n{4} child rows'.format(
+                datetime.now(),
+                self.created,
+                self.updated,
+                self.rejected,
+                self.child_rows,
+            )
+        )
 
 
 class FileReaderLogManager():
     """Context manager that creates the reader and handles files."""
 
-    def __init__(self, filename, logname=None,
-                 reader_class=None, encoding=None):
+    def __init__(self, filename, logname=None, reader_class=None, encoding=None):
         self.filename = filename
         self.log = logname
         self.reader = reader_class
@@ -150,17 +168,24 @@ class Mapper(object):
     def load(self):
         """Loads data into database using Django models and error logging."""
         print('Opening {0} using {1}'.format(self.filename, self.encoding))
-        with FileReaderLogManager(self.filename,
-                                  logname=self.logfilename,
-                                  reader_class=self.reader_class,
-                                  encoding=self.encoding) as reader:
+        with FileReaderLogManager(
+            self.filename,
+            logname=self.logfilename,
+            reader_class=self.reader_class,
+            encoding=self.encoding
+        ) as reader:
             reader.log(
                 'Data extraction started {0}\n\nStart line: '
                 '{1}\nEnd line: {2}\n'.format(
-                    datetime.now().strftime(
-                        '%Y-%m-%d'), self.slice_begin, self.slice_end))
+                    datetime.now().strftime('%Y-%m-%d'),
+                    self.slice_begin,
+                    self.slice_end
+                )
+            )
             self.counter = FeedbackCounter(
-                feedbacksize=self.feedbacksize, message=self.message)
+                feedbacksize=self.feedbacksize,
+                message=self.message
+            )
             while self.slice_begin and self.slice_begin > self.counter.counter:
                 reader.next()
                 self.counter.increment()
@@ -179,11 +204,17 @@ class Mapper(object):
                 transformer = self.transformer_class(csv_dic, self.defaults)
                 if transformer.is_valid():
                     dic = transformer.cleaned_data
+                elif transformer.is_child_row:
+                    self.counter.inc_child_rows()
+                    continue
                 else:
                     reader.log(
                         'Validation error in line {0}: {1} '
                         '=> rejected'.format(
-                            self.counter.counter, transformer.error))
+                            self.counter.counter,
+                            transformer.error
+                        )
+                    )
                     self.counter.reject()
                     continue
                 # remove keywords conflicting with Django model
@@ -192,8 +223,10 @@ class Mapper(object):
                 if 'id' in dic:
                     del dic['id']
                 generator = InstanceGenerator(
-                    self.model_class, dic,
-                    persistence=self.etl_persistence)
+                    self.model_class,
+                    dic,
+                    persistence=self.etl_persistence
+                )
                 try:
                     generator.get_instance()
                 except (ValidationError, IntegrityError, DatabaseError), e:
