@@ -204,7 +204,7 @@ class Mapper(object):
                 transformer = self.transformer_class(csv_dic, self.defaults)
                 if transformer.is_valid():
                     dic = transformer.cleaned_data
-                elif transformer.is_child_row:
+                elif transformer.is_child_row and not transformer.error:
                     self.counter.inc_child_rows()
                     continue
                 else:
