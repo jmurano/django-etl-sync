@@ -72,6 +72,9 @@ class Transformer(object):
             if self.is_child_row:
                 return False
             return True
+        except KeyError, e:
+            self.error = 'KeyError (missing field): %s' % e
+            return False
         except (ValidationError, UnicodeEncodeError), e:
             self.error = e
             return False
