@@ -172,6 +172,10 @@ class Mapper(object):
     forms = []
     counter = None
     reject_filename = None
+    #   20140218 jmurano
+    #   date_flexibility is used by some CocoaAction transformers
+    #   to allow records with duplicate dates that would otherwise be rejected
+    date_flexibility = False
 
     def __init__(self, *args, **kwargs):
         for k in kwargs:
@@ -239,7 +243,11 @@ class Mapper(object):
                 except StopIteration:
                     reader.log('End of file.')
                     break
-                transformer = self.transformer_class(csv_dic, self.defaults)
+                transformer = self.transformer_class(
+                    csv_dic,
+                    self.defaults,
+                    self.date_flexibility,
+                )
                 if transformer.is_valid():
                     dic = transformer.cleaned_data
                 elif transformer.is_child_row and not transformer.error:

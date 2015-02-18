@@ -12,10 +12,15 @@ class Transformer(object):
     # dictionary of mappings applied in remap
     mappings = {}
     is_child_row = False
+    #   20140218 jmurano
+    #   date_flexibility is used by some CocoaAction transformers
+    #   to allow records with duplicate dates that would otherwise be rejected
+    date_flexibility = False
 
-    def __init__(self, dic, defaults={}):
+    def __init__(self, dic, defaults={}, date_flexibility=False):
         self.dic = dic
         self.defaults = defaults
+        self.date_flexibility = date_flexibility
 
     def _process_forms(self, dic):
         """Processes a list of forms."""
