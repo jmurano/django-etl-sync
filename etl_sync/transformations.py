@@ -80,6 +80,9 @@ class Transformer(object):
         except KeyError, e:
             self.error = 'KeyError (missing field): %s' % e
             return False
+        except ValueError, e:
+            self.error = 'ValueError: %s' % e
+            return False
         except (ValidationError, UnicodeEncodeError), e:
             self.error = e
             return False
