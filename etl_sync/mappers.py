@@ -269,9 +269,10 @@ class Mapper(object):
                     )
                     try:
                         generator.get_instance()
-                    except (ValidationError, IntegrityError, DatabaseError), e:
+                    except ValidationError, e:
+                        error_msg = 'ValidationError: %s' % e.message
+                    except (IntegrityError, DatabaseError), e:
                         error_msg = 'Error (%s)' % str(e)
-                        continue
                     else:
                         self.counter.use_result(generator.res)
                 if error_msg:

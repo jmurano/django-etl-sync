@@ -223,6 +223,9 @@ class BaseInstanceGenerator(object):
                         string = string + ', ' + key
                     print('Double entry found for {}'.format(string))
                     return model_instance
+                except Exception, e:
+                    #   forward other errors to mapper
+                    raise e.__class__(e.message)
             self._assign_related(
                 model_instance, self.related_instances, self.dic)
             return model_instance
