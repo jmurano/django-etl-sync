@@ -347,7 +347,16 @@ class InstanceGenerator(BaseInstanceGenerator):
                     dic[fieldname],
                 )
             try:
-                if fieldvalue or fieldtype != 'ReverseForeignKey':
+                do_set = False
+                if fieldvalue:
+                    do_set = True
+                #   don't bother setting these when there is nothing to set
+                if fieldtype not in [
+                    'ReverseForeignKey',
+                    'ManyToManyField',
+                ]:
+                    do_set = True
+                if do_set:
                     setattr(model_instance, fieldname, fieldvalue)
             except NameError:
                 #   probably indicates that fieldvalue has not been defined
